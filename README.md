@@ -115,9 +115,16 @@ Then add `analytics.sqlite` to Metabase / Superset / Grafana / Redash as a SQLit
 - Only what DuckDB's [postgres](https://duckdb.org/docs/extensions/postgres), [mysql](https://duckdb.org/docs/extensions/mysql) and [sqlite](https://duckdb.org/docs/extensions/sqlite) extensions support; SQL Server, Snowflake, BigQuery and SaaS APIs are not covered yet. You write DuckDB's SQL dialect.
 - Extensions are downloaded by DuckDB on first use. If your network blocks DuckDB's plain-http extension download, crossql retries over https; offline, download the `.duckdb_extension` files and set `CROSSQL_EXTENSION_DIR`.
 
+## Alternatives
+
+- **DuckDB directly**: crossql is a thin layer over DuckDB's `ATTACH`. If you're happy writing the `INSTALL`/`ATTACH` statements yourself, the DuckDB CLI does the same joins. crossql adds the named-source config, read-only guard, secret masking, `check`/`tables`, and snapshots.
+- **[pgfederate](https://github.com/Jwrede/pgfederate)**: also DuckDB-based, but serves the Postgres wire protocol so Metabase can query sources live. Pick it if you need live queries from the BI tool; crossql is a CLI plus file snapshots.
+- **Trino / Postgres foreign data wrappers**: the right call for many sources, big data, or many users; more to run and secure.
+- **A warehouse + ELT**: the long-term answer once you have a data team.
+
 ## Demo
 
-[`demo.mp4`](https://github.com/hamarshehmhmd/crossql/releases/download/v0.1.0/demo.mp4) (about 2½ minutes, narrated) shows `check`, `tables`, a four-way join across Postgres, MySQL (MariaDB), SQLite and CSV, `explain`, the read-only guard and a snapshot opened as a plain SQLite file. The data comes from [`examples/make_demo.py`](examples/make_demo.py), which you can run yourself:
+[`demo.mp4`](https://github.com/hamarshehmhmd/crossql/releases/download/v0.1.0/demo.mp4) (2 min 47 s, narrated) shows `check`, `tables`, a four-way join across Postgres, MySQL (MariaDB), SQLite and CSV, `explain`, the read-only guard and a snapshot opened as a plain SQLite file. The data comes from [`examples/make_demo.py`](examples/make_demo.py), which you can run yourself:
 
 ```sh
 python examples/make_demo.py demo-data                 # SQLite + CSV only, works anywhere
