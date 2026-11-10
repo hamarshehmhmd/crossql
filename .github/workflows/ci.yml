@@ -1,0 +1,69 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          - os: macos-latest
+            python: "3.13"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install . pytest
+      - run: python -m pytest -q -rs
+
+  servers:
+    name: real Postgres 16 + MySQL 8.4 (four-way join, read-only, snapshot)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: pw
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: pw
+          MYSQL_DATABASE: billing
+        ports: ["3306:3306"]
+        options: --health-cmd "mysqladmin ping -ppw" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      CROSSQL_TEST_PG: postgresql://postgres:pw@localhost:5432/postgres
+      CROSSQL_TEST_MYSQL: mysql://root:pw@127.0.0.1:3306/billing
+      CROSSQL_TEST_MYSQL_ARGS: -h127.0.0.1 -P3306 -uroot -ppw billing
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: python -m pip install . pytest
+      - run: python -m pytest -q -rs tests/test_servers.py
+      - name: README walkthrough against the servers
+        run: |
+          python examples/make_demo.py /tmp/demo --pg "$CROSSQL_TEST_PG" --mysql="$CROSSQL_TEST_MYSQL_ARGS"
+          cd /tmp/demo
+          crossql check -s app="$CROSSQL_TEST_PG" -s billing="$CROSSQL_TEST_MYSQL" -s support=support.sqlite -s leads=leads.csv
+          crossql query -s app="$CROSSQL_TEST_PG" -s billing="$CROSSQL_TEST_MYSQL" -s leads=leads.csv \
+            "SELECT l.channel, count(*) AS invoices FROM app.users u JOIN billing.invoices i ON i.user_id = u.id JOIN leads l USING (email) GROUP BY 1 ORDER BY 2 DESC"
+
+  install-script:
+    name: one-line install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: CROSSQL_REF=${{ github.sha }} sh install.sh
+      - run: |
+          export PATH="$HOME/.local/bin:${PIPX_BIN_DIR:-/opt/pipx_bin}:$PATH"
+          crossql --version
+          cd "$(mktemp -d)" && printf 'a,b\n1,2\n' > t.csv && crossql query -s t=t.csv "select sum(a+b) as s from t" -F csv
