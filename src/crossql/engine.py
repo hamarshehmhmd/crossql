@@ -105,6 +105,18 @@ class Table:
         return f"{self.source}.{self.schema}.{self.name}"
 
 
+def mysql_database(url: str) -> str:
+    """The database named in a MySQL URL or key=value string ('' if none)."""
+    import re
+    from urllib.parse import unquote, urlsplit
+
+    if "://" in url:
+        path = urlsplit(url).path.strip("/")
+        return unquote(path.split("/", 1)[0]) if path else ""
+    m = re.search(r"\b(?:database|db)\s*=\s*([^\s]+)", url)
+    return m.group(1) if m else ""
+
+
 class Session:
     def __init__(self, sources: dict, threads: int | None = None):
         self.sources = sources
@@ -149,6 +161,9 @@ class Session:
         if source.type == "postgres":
             return source.options.get("schema") or "public"
         if source.type == "mysql":
+            db = mysql_database(source.url)
+            if db:
+                return db
             rows = self.con.execute(
                 "SELECT DISTINCT schema_name FROM duckdb_tables() WHERE database_name = ?", [source.name]
             ).fetchall()
@@ -186,8 +201,9 @@ class Session:
                    ORDER BY 1, 2""",
                 [name, name],
             ).fetchall()
+            only = self.default_schemas.get(name) if src.type == "mysql" else None
             for schema, tname, kind in rows:
-                if schema in HIDDEN_SCHEMAS:
+                if schema in HIDDEN_SCHEMAS or (only and schema != only):
                     continue
                 cols = []
                 if columns:

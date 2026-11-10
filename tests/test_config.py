@@ -98,3 +98,11 @@ def test_duration():
     assert parse_duration("0") == 0
     with pytest.raises(ConfigError):
         parse_duration("soon")
+
+
+def test_mysql_database_name():
+    from crossql.engine import mysql_database
+    assert mysql_database("mysql://root:pw@127.0.0.1:3306/billing") == "billing"
+    assert mysql_database("mysql://root@h/billing?ssl_mode=required") == "billing"
+    assert mysql_database("host=h user=r database=shop") == "shop"
+    assert mysql_database("mysql://root@h") == ""

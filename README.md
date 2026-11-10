@@ -128,7 +128,7 @@ python examples/make_demo.py demo-data --pg postgresql://localhost/postgres --my
 
 ```sh
 pip install -e . pytest
-pytest -q                                   # 59 tests on SQLite/CSV/Parquet/DuckDB sources
+pytest -q                                   # 60 tests on SQLite/CSV/Parquet/DuckDB sources
 CROSSQL_TEST_PG=postgresql://postgres:pw@localhost/postgres \
 CROSSQL_TEST_MYSQL=mysql://root:pw@127.0.0.1:3306/billing \
 CROSSQL_TEST_MYSQL_ARGS='-h127.0.0.1 -uroot -ppw billing' pytest -q   # + 4 against real servers

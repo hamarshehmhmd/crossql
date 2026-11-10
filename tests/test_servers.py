@@ -70,6 +70,10 @@ def test_four_way_join_matches_python(demo, cli):
     rc, out, err = cli("check", cwd=demo)
     assert rc == 0, out + err
     assert "postgres" in out and "mysql" in out
+    rc, out, _ = cli("tables", "-F", "json", cwd=demo)
+    import json
+    assert {"app.users", "billing.invoices", "support.tickets", "leads"} <= {t["ref"] for t in json.loads(out)}
+    assert all(t["schema"] == "billing" for t in json.loads(out) if t["source"] == "billing")
     rc, out, err = cli("query", JOIN, "-F", "csv", cwd=demo)
     assert rc == 0, err
     assert out.splitlines()[1:] == expected(demo)
